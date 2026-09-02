@@ -6,7 +6,7 @@ const geist = Geist({ variable: '--font-sans', subsets: ['latin'] });
 const lora = Lora({ variable: '--font-serif', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL('https://lounasvahti.rnyqvist.chatgpt.site'),
   title: 'Lounasvahti – päivän lounaat läheltäsi',
   description: 'Paikallisten lounasravintoloiden päivän ruokalistat yhdessä paikassa.',
   openGraph: {
