@@ -8,6 +8,7 @@ from user-selected restaurant pages.
 ## Current status
 
 - First functional version completed on 2026-09-02.
+- Source is mirrored to the private GitHub repository `rnyqvist/Lounasvahti`.
 - Default restaurants: Sodexo Optimes Business Garden, Restaurant Anna,
   Huili Tourula, and Scandic Jyväskylä Station.
 - Sodexo weekly JSON, Juvenes Jamix, Huili, and Lounaat.info menus have
