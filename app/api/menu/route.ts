@@ -61,7 +61,7 @@ function commonDietTags(items: JamixItem[]) {
 }
 
 function commonInlineDietTags(value: string) {
-  const groups = (value.match(/\b(?:VEG|VL|G|L|M|V)(?:\s*,\s*(?:VEG|VL|G|L|M|V))*/gi) || []).map(dietTags);
+  const groups = (value.match(/\b(?:VEG|VL|G|L|M|V)(?:(?:\s*,\s*|\s+)(?:VEG|VL|G|L|M|V))*\b/gi) || []).map(dietTags);
   if (!groups.length) return [];
   return groups[0].filter((tag) => groups.every((tags) => tags.includes(tag)));
 }
@@ -144,27 +144,43 @@ function parseLounaatInfo(pageUrl: URL, html: string) {
   if (!pageUrl.hostname.endsWith('lounaat.info')) return null;
   const helsinki = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Helsinki' }));
   const weekdayNames = ['Sunnuntaina', 'Maanantaina', 'Tiistaina', 'Keskiviikkona', 'Torstaina', 'Perjantaina', 'Lauantaina'];
-  const label = `${weekdayNames[helsinki.getDay()]} ${helsinki.getDate()}.${helsinki.getMonth() + 1}.`;
+  const weekday = weekdayNames[helsinki.getDay()];
+  const label = `${weekday} ${helsinki.getDate()}.${helsinki.getMonth() + 1}.`;
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const block = html.match(new RegExp(`<h3>${escaped}<\\/h3>([\\s\\S]*?)<div class=["']item-footer["']>`, 'i'))?.[1] || '';
-  const foodBlock = block.match(/<li[^>]*class=["'][^"']*menu-item[^"']*["'][^>]*>([\s\S]*?)<\/li>/i)?.[1] || '';
-  const withoutDietLinks = foodBlock.replace(/<a[^>]*class=["'][^"']*diet[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
-  const pieces = [...withoutDietLinks.matchAll(/<p[^>]*class=["'](?:dish|info)["'][^>]*>([\s\S]*?)<\/p>/gi)]
-    .flatMap((match) => match[1].split(/<br\s*\/?>/i));
-  const originalPieces = [...foodBlock.matchAll(/<p[^>]*class=["'](?:dish|info)["'][^>]*>([\s\S]*?)<\/p>/gi)]
-    .flatMap((match) => match[1].split(/<br\s*\/?>/i));
-  const dishes = pieces.map((piece, index) => {
-    const name = cleanDietText(textFromHtml(piece));
-    const original = textFromHtml(originalPieces[index] || piece);
-    return { name, type: mealType('', name), tags: commonInlineDietTags(original) };
-  }).filter((dish) => dish.name && !/lounasbuffet|pysäköinti/i.test(dish.name));
+  const exactBlock = html.match(new RegExp(`<h3>${escaped}<\\/h3>([\\s\\S]*?)<div class=["']item-footer["']>`, 'i'))?.[1];
+  const weekdayBlock = html.match(new RegExp(`<h3>${weekday}\\s+\\d{1,2}\\.\\d{1,2}\\.<\\/h3>([\\s\\S]*?)<div class=["']item-footer["']>`, 'i'))?.[1];
+  const block = exactBlock || weekdayBlock || '';
+  const rows = [...block.matchAll(/<li[^>]*class=["'][^"']*menu-item[^"']*["'][^>]*>([\s\S]*?)<\/li>/gi)].flatMap((listItem) => {
+    const originalPieces = [...listItem[1].matchAll(/<p[^>]*class=["'](?:dish|info)["'][^>]*>([\s\S]*?)<\/p>/gi)].flatMap((match) => match[1].split(/<br\s*\/?>/i));
+    return originalPieces.map((original) => {
+      const withoutDietLinks = original.replace(/<a[^>]*class=["'][^"']*diet[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
+      return { name: cleanDietText(textFromHtml(withoutDietLinks)), original: textFromHtml(original) };
+    });
+  });
+  let pendingHeading = '';
+  const dishes = rows.flatMap((row) => {
+    if (!row.name || /lounaan hintaan kuuluu|pysäköinti|salaattipöytä.*kahvi|lounasbuffet|keitto ja salaattibuffet/i.test(row.name)) return [];
+    const letters = row.name.replace(/[^A-Za-zÅÄÖåäö]/g, '');
+    const isPricedHeading = /\d+[,.]\d{2}\s*€:?$/i.test(row.name) && letters.length > 3 && letters === letters.toUpperCase();
+    if (isPricedHeading) {
+      pendingHeading = row.name.replace(/\s*\d+[,.]\d{2}\s*€:?$/i, '').trim();
+      return [];
+    }
+    const heading = pendingHeading;
+    pendingHeading = '';
+    const name = heading ? `${heading}: ${row.name}` : row.name;
+    return [{ name, type: mealType(heading, row.name), tags: commonInlineDietTags(row.original) }];
+  });
   const pageText = textFromHtml(html);
   const name = textFromHtml(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || 'Scandic Jyväskylä Station').replace(/^Lounas\s+/i, '').replace(/,\s*Jyväskylä$/i, '');
-  const address = pageText.match(/Vapaudenkatu\s+73,?\s+Jyväskylä/i)?.[0] || 'Vapaudenkatu 73, Jyväskylä';
-  const hours = pageText.match(/ma\s*-\s*pe:\s*(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}(?::\d{2})?)/i);
-  const price = block.match(/Lounasbuffet\s*([0-9]+[,.][0-9]{2}\s*€)/i)?.[1] || '';
+  const description = decodeHtml(html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1] || '');
+  const addressPattern = /[A-ZÅÄÖ][\p{L}-]*?(?:katu|tie|kuja|polku|väylä|rinne)\s+\d+[A-Za-z]?(?:\s*[-–]\s*\d+)?(?:,?\s+\d{5})?,?\s+Jyväskylä/iu;
+  const address = description.match(addressPattern)?.[0] || pageText.match(addressPattern)?.[0] || pageUrl.hostname;
+  const hours = pageText.match(/ma\s*-\s*pe:\s*(\d{1,2}(?::\d{2})?)\s*[-–]\s*(\d{1,2}(?::\d{2})?)/i);
+  const price = block.match(/(?:Lounasbuffet\s*)?([0-9]+[,.][0-9]{2}\s*€)/i)?.[1] || '';
+  const opensAt = hours?.[1] && !hours[1].includes(':') ? `${hours[1]}:00` : hours?.[1];
   const closesAt = hours?.[2] && !hours[2].includes(':') ? `${hours[2]}:00` : hours?.[2];
-  return { name, address, provider: 'LOUNAAT.INFO', hours: hours ? `${hours[1]}–${closesAt}` : '10:45–13:00', price, dishes, sourceUrl: pageUrl.toString() };
+  return { name, address, provider: 'LOUNAAT.INFO', hours: hours ? `${opensAt}–${closesAt}` : 'Tarkista ravintolasta', price, dishes, sourceUrl: pageUrl.toString() };
 }
 
 function parseGeneric(pageUrl: URL, html: string) {

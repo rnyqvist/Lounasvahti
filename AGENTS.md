@@ -12,6 +12,8 @@ from user-selected restaurant pages.
   Huili Tourula, and Scandic Jyväskylä Station.
 - Sodexo weekly JSON, Juvenes Jamix, Huili, and Lounaat.info menus have
   source-specific server-side parsers.
+- The Lounaat.info parser supports both compact buffet blocks and separate
+  priced heading/dish rows, with a weekday fallback for stale displayed dates.
 - Other pages use a conservative generic HTML menu heuristic.
 - Restaurant URLs persist per device in localStorage.
 - Responsive Finnish UI, error/loading/empty states, refresh, add, and remove are implemented.
