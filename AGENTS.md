@@ -8,8 +8,10 @@ from user-selected restaurant pages.
 ## Current status
 
 - First functional version completed on 2026-09-02.
-- Default restaurant: Sodexo Optimes Business Garden, Jyväskylä.
-- Sodexo weekly JSON feeds are detected and parsed server-side.
+- Default restaurants: Sodexo Optimes Business Garden, Restaurant Anna,
+  Huili Tourula, and Scandic Jyväskylä Station.
+- Sodexo weekly JSON, Juvenes Jamix, Huili, and Lounaat.info menus have
+  source-specific server-side parsers.
 - Other pages use a conservative generic HTML menu heuristic.
 - Restaurant URLs persist per device in localStorage.
 - Responsive Finnish UI, error/loading/empty states, refresh, add, and remove are implemented.
@@ -24,8 +26,9 @@ from user-selected restaurant pages.
 
 ## Next useful step
 
-Add explicit parsers and fixtures for the next real restaurant providers the
-user wants to support. Prefer provider-owned JSON/RSS feeds where available.
+Add explicit parsers for the next real restaurant providers the user wants to
+support. Prefer provider-owned JSON/RSS feeds where available and re-check the
+four live default URLs after parser changes.
 
 ## Safety notes
 

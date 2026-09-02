@@ -2,7 +2,12 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
-const DEFAULT_URL = 'https://www.sodexo.fi/ravintolat/ravintola-optimes-business-garden';
+const DEFAULT_URLS = [
+  'https://www.sodexo.fi/ravintolat/ravintola-optimes-business-garden',
+  'https://juvenes.fi/anna/',
+  'https://huilipiste.fi/ravintola/huili-tourula-jyvaskyla/',
+  'https://www.lounaat.info/lounas/scandic-jyvaskyla/jyvaskyla',
+];
 type Dish = { name: string; type: string; tags: string[] };
 type Restaurant = { name: string; address: string; provider: string; hours: string; price: string; dishes: Dish[]; sourceUrl: string };
 type MenuState = { url: string; data?: Restaurant; loading: boolean; error?: string; fetchedAt?: string };
@@ -10,11 +15,18 @@ type MenuState = { url: string; data?: Restaurant; loading: boolean; error?: str
 const dateFormatter = new Intl.DateTimeFormat('fi-FI', { timeZone: 'Europe/Helsinki', weekday: 'long', day: 'numeric', month: 'long' });
 
 function loadSavedUrls() {
-  if (typeof window === 'undefined') return [DEFAULT_URL];
+  if (typeof window === 'undefined') return DEFAULT_URLS;
   try {
     const saved = JSON.parse(localStorage.getItem('lounasvahti-ravintolat') || '[]');
-    return Array.isArray(saved) && saved.length ? saved : [DEFAULT_URL];
-  } catch { return [DEFAULT_URL]; }
+    const savedUrls = Array.isArray(saved) ? saved.filter((value): value is string => typeof value === 'string') : [];
+    if (!localStorage.getItem('lounasvahti-oletukset-v2')) {
+      const merged = [...new Set([...DEFAULT_URLS, ...savedUrls])];
+      localStorage.setItem('lounasvahti-ravintolat', JSON.stringify(merged));
+      localStorage.setItem('lounasvahti-oletukset-v2', '1');
+      return merged;
+    }
+    return savedUrls.length ? savedUrls : DEFAULT_URLS;
+  } catch { return DEFAULT_URLS; }
 }
 
 export default function Home() {

@@ -1,13 +1,14 @@
 # Lounasvahti
 
 Suomenkielinen selainpalvelu, joka kokoaa paikallisten ravintoloiden päivän
-lounaslistat yhteen näkymään. Ensimmäinen tuettu lähde on Sodexon Ravintola
-Optimes Business Garden Jyväskylässä.
+lounaslistat yhteen näkymään. Oletuslistalla ovat Optimes Business Garden,
+Restaurant Anna, Huili Tourula ja Scandic Jyväskylä Station.
 
 ## Toiminnot
 
 - päivän ruokalista haetaan aina sivua avattaessa ja päivitettäessä
-- Sodexon oma JSON-ruokalista tunnistetaan ravintolasivulta automaattisesti
+- Sodexon JSON-, Juvenes Jamix-, Huili- ja Lounaat.info-ruokalistat tunnistetaan
+  lähdekohtaisilla jäsentimillä
 - muille lounassivuille on yleinen HTML-pohjainen ruokalistan tunnistus
 - käyttäjä voi lisätä ja poistaa ravintoloita URL-osoitteen perusteella
 - ravintolalista säilyy selaimen paikallisessa muistissa

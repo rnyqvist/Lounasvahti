@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 type SodexoCourse = { title_fi?: string; category?: string; meal_category?: string | null; dietcodes?: string; properties?: string; price?: string };
+type JamixItem = { name?: string; diets?: string };
+type JamixMealOption = { name?: string; menuItems?: JamixItem[] };
+type JamixDay = { date?: number; mealoptions?: JamixMealOption[] };
+type JamixMenuType = { menuTypeId?: number; menus?: Array<{ days?: JamixDay[] }> };
 
 function decodeHtml(value: string) {
-  const entities: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ' };
-  return value.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code))).replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16))).replace(/&([a-z]+);/gi, (match, entity) => entities[entity.toLowerCase()] ?? match).replace(/\s+/g, ' ').trim();
+  const entities: Record<string, string> = {
+    amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ', euro: '€',
+    auml: 'ä', Auml: 'Ä', ouml: 'ö', Ouml: 'Ö', aring: 'å', Aring: 'Å',
+  };
+  return value.replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code))).replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(parseInt(code, 16))).replace(/&([a-z]+);/gi, (match, entity) => entities[entity] ?? entities[entity.toLowerCase()] ?? match).replace(/\s+/g, ' ').trim();
 }
 
 function textFromHtml(value: string) { return decodeHtml(value.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ')); }
@@ -32,6 +39,41 @@ function finnishCategory(category = '', title = '') {
   return 'Pääruoka';
 }
 
+function cleanDietText(value: string) {
+  return decodeHtml(value)
+    .replace(/\b(?:VEG|VL|G|L|M|V)\b/gi, '')
+    .replace(/\s+,/g, ',')
+    .replace(/,{2,}/g, ',')
+    .replace(/,\s*(?=ja\b|$)/gi, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[-–•\s]+/, '')
+    .trim();
+}
+
+function dietTags(value: string) {
+  return [...new Set((value.match(/\b(?:VEG|VL|G|L|M|V)\b/gi) || []).map((tag) => tag.toUpperCase() === 'V' ? 'VEG' : tag.toUpperCase()))];
+}
+
+function commonDietTags(items: JamixItem[]) {
+  const tagged = items.map((item) => dietTags(item.diets || '')).filter((tags) => tags.length);
+  if (!tagged.length) return [];
+  return tagged[0].filter((tag) => tagged.every((tags) => tags.includes(tag)));
+}
+
+function commonInlineDietTags(value: string) {
+  const groups = (value.match(/\b(?:VEG|VL|G|L|M|V)(?:\s*,\s*(?:VEG|VL|G|L|M|V))*/gi) || []).map(dietTags);
+  if (!groups.length) return [];
+  return groups[0].filter((tag) => groups.every((tags) => tags.includes(tag)));
+}
+
+function mealType(name = '', dish = '') {
+  const value = `${name} ${dish}`;
+  if (/jälkiruoka|dessert|mousse|rahka|kiisseli|pannukakku/i.test(value)) return 'Jälkiruoka';
+  if (/keitto|soup/i.test(value)) return 'Keitto';
+  if (/kasvis|vege|tofu|papu|mifu|porkkanapihvi/i.test(value)) return 'Kasvis';
+  return 'Pääruoka';
+}
+
 async function parseSodexo(pageUrl: URL, html: string) {
   const id = html.match(/\/ruokalistat\/output\/(?:weekly_json|daily_json)\/(\d+)/i)?.[1];
   if (!id) return null;
@@ -52,6 +94,77 @@ async function parseSodexo(pageUrl: URL, html: string) {
   const buffetPrice = pageText.match(/Lounasbuffet\s*\|?\s*Hinta\s*([0-9]+[,.][0-9]{2}\s*€)/i)?.[1];
   const dishes = courses.map((course) => ({ name: decodeHtml(course.title_fi || ''), type: finnishCategory(course.category || course.meal_category || '', course.title_fi), tags: (course.dietcodes || course.properties || '').split(',').map((tag) => tag.trim()).filter((tag) => ['G', 'L', 'M', 'VL', 'VEG'].includes(tag)) })).filter((dish) => dish.name);
   return { name: h1.replace(/^Ravintola\s+/i, ''), address: addressBlock || mappedAddress || (street ? `${street}${postal ? `, ${postal}` : ''}` : pageUrl.hostname), provider: 'SODEXO', hours: lunchMatch ? `${lunchMatch[1]}–${lunchMatch[2]}` : 'Tarkista ravintolasta', price: courses.find((course) => course.price)?.price || buffetPrice || '', dishes, sourceUrl: pageUrl.toString() };
+}
+
+async function parseJuvenes(pageUrl: URL, html: string) {
+  if (!pageUrl.hostname.endsWith('juvenes.fi')) return null;
+  const account = html.match(/fi\.jamix\.cloud\/apps\/menu\/\?anro=(\d+)/i)?.[1];
+  const kitchen = html.match(/\bmenudid=["'](\d+)["']/i)?.[1];
+  if (!account || !kitchen) return null;
+  const configuredTypes = (html.match(/\bmenuids=["']([\d, ]+)["']/i)?.[1] || '').split(',').map(Number).filter(Boolean);
+  const endpoint = `https://fi.jamix.cloud/apps/menuservice/rest/haku/menu/${account}/${kitchen}?lang=fi`;
+  const payload = await (await safeFetch(endpoint)).json() as Array<{ kitchenName?: string; menuTypes?: JamixMenuType[] }>;
+  const todayNumber = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Helsinki', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/-/g, ''));
+  const menuTypes = payload[0]?.menuTypes || [];
+  const selectedTypes = menuTypes.filter((type) => !configuredTypes.length || configuredTypes.includes(type.menuTypeId || -1));
+  const dishes = selectedTypes.flatMap((type) => (type.menus || []).flatMap((menu) => {
+    const today = (menu.days || []).find((day) => day.date === todayNumber);
+    return (today?.mealoptions || []).filter((option) => !/^info/i.test(option.name || '')).map((option) => {
+      const items = option.menuItems || [];
+      const name = items.map((item) => item.name?.trim()).filter(Boolean).join(', ');
+      const tags = commonDietTags(items);
+      return { name, type: mealType(option.name, name), tags };
+    }).filter((dish) => dish.name);
+  }));
+  const pageText = textFromHtml(html);
+  const address = pageText.match(/Kympinkatu\s+3\s+C,?\s+40320\s+Jyväskylä/i)?.[0] || 'Kympinkatu 3 C, 40320 Jyväskylä';
+  const hours = pageText.match(/Lounas\s*buffet\s*(\d{1,2}[.:]\d{2})\s*[-–]\s*(\d{1,2}[.:]\d{2})/i);
+  const price = pageText.match(/Lounasbuffet\s*([0-9]+[,.][0-9]{2}\s*€)/i)?.[1] || '';
+  const name = textFromHtml(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || '') || payload[0]?.kitchenName || 'Restaurant Anna';
+  return { name, address, provider: 'JUVENES', hours: hours ? `${hours[1]}–${hours[2]}` : '10.30–13.00', price, dishes, sourceUrl: pageUrl.toString() };
+}
+
+function parseHuili(pageUrl: URL, html: string) {
+  if (!pageUrl.hostname.endsWith('huilipiste.fi')) return null;
+  const itemMatches = [...html.matchAll(/<span[^>]*class=["'][^"']*lunch-name[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi)];
+  const dishes = itemMatches.map((match) => {
+    const raw = textFromHtml(match[1]);
+    const name = cleanDietText(raw);
+    return { name, type: mealType('', name), tags: commonInlineDietTags(raw) };
+  }).filter((dish) => dish.name);
+  const pageText = textFromHtml(html);
+  const h1 = textFromHtml(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || 'Huili Tourula Jyväskylä');
+  const address = pageText.match(/Tourulantie\s+2,?\s+40100,?\s+Jyväskylä/i)?.[0] || 'Tourulantie 2, 40100 Jyväskylä';
+  const hours = pageText.match(/Lounas\s+Ma\s*-?\s*Pe\s+(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/i);
+  const price = textFromHtml(html.match(/class=["'][^"']*lunch-price[^"']*["'][^>]*>([\s\S]*?)<\/span>/i)?.[1] || '');
+  return { name: h1, address, provider: 'HUILI', hours: hours ? `${hours[1]}–${hours[2]}` : '10:30–15:00', price, dishes, sourceUrl: pageUrl.toString() };
+}
+
+function parseLounaatInfo(pageUrl: URL, html: string) {
+  if (!pageUrl.hostname.endsWith('lounaat.info')) return null;
+  const helsinki = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Helsinki' }));
+  const weekdayNames = ['Sunnuntaina', 'Maanantaina', 'Tiistaina', 'Keskiviikkona', 'Torstaina', 'Perjantaina', 'Lauantaina'];
+  const label = `${weekdayNames[helsinki.getDay()]} ${helsinki.getDate()}.${helsinki.getMonth() + 1}.`;
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const block = html.match(new RegExp(`<h3>${escaped}<\\/h3>([\\s\\S]*?)<div class=["']item-footer["']>`, 'i'))?.[1] || '';
+  const foodBlock = block.match(/<li[^>]*class=["'][^"']*menu-item[^"']*["'][^>]*>([\s\S]*?)<\/li>/i)?.[1] || '';
+  const withoutDietLinks = foodBlock.replace(/<a[^>]*class=["'][^"']*diet[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
+  const pieces = [...withoutDietLinks.matchAll(/<p[^>]*class=["'](?:dish|info)["'][^>]*>([\s\S]*?)<\/p>/gi)]
+    .flatMap((match) => match[1].split(/<br\s*\/?>/i));
+  const originalPieces = [...foodBlock.matchAll(/<p[^>]*class=["'](?:dish|info)["'][^>]*>([\s\S]*?)<\/p>/gi)]
+    .flatMap((match) => match[1].split(/<br\s*\/?>/i));
+  const dishes = pieces.map((piece, index) => {
+    const name = cleanDietText(textFromHtml(piece));
+    const original = textFromHtml(originalPieces[index] || piece);
+    return { name, type: mealType('', name), tags: commonInlineDietTags(original) };
+  }).filter((dish) => dish.name && !/lounasbuffet|pysäköinti/i.test(dish.name));
+  const pageText = textFromHtml(html);
+  const name = textFromHtml(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || 'Scandic Jyväskylä Station').replace(/^Lounas\s+/i, '').replace(/,\s*Jyväskylä$/i, '');
+  const address = pageText.match(/Vapaudenkatu\s+73,?\s+Jyväskylä/i)?.[0] || 'Vapaudenkatu 73, Jyväskylä';
+  const hours = pageText.match(/ma\s*-\s*pe:\s*(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}(?::\d{2})?)/i);
+  const price = block.match(/Lounasbuffet\s*([0-9]+[,.][0-9]{2}\s*€)/i)?.[1] || '';
+  const closesAt = hours?.[2] && !hours[2].includes(':') ? `${hours[2]}:00` : hours?.[2];
+  return { name, address, provider: 'LOUNAAT.INFO', hours: hours ? `${hours[1]}–${closesAt}` : '10:45–13:00', price, dishes, sourceUrl: pageUrl.toString() };
 }
 
 function parseGeneric(pageUrl: URL, html: string) {
@@ -78,7 +191,7 @@ export async function POST(request: NextRequest) {
     if (!type.includes('text/html')) throw new Error('Osoite ei johda luettavaan verkkosivuun.');
     const html = await response.text();
     if (html.length > 3_000_000) throw new Error('Sivu on liian suuri analysoitavaksi.');
-    const restaurant = await parseSodexo(url, html) || parseGeneric(url, html);
+    const restaurant = await parseSodexo(url, html) || await parseJuvenes(url, html) || parseHuili(url, html) || parseLounaatInfo(url, html) || parseGeneric(url, html);
     return NextResponse.json({ restaurant, fetchedAt: new Date().toISOString() });
   } catch (error) {
     const message = error instanceof Error && error.name === 'TimeoutError' ? 'Ravintolan sivu ei vastannut ajoissa.' : error instanceof Error ? error.message : 'Ruokalistan haku epäonnistui.';
