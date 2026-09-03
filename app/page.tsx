@@ -7,6 +7,7 @@ const DEFAULT_URLS = [
   'https://juvenes.fi/anna/',
   'https://huilipiste.fi/ravintola/huili-tourula-jyvaskyla/',
   'https://www.lounaat.info/lounas/scandic-jyvaskyla/jyvaskyla',
+  'https://www.tourulanravintola.fi/buffet-lounas/',
 ];
 type Dish = { name: string; type: string; tags: string[] };
 type Restaurant = { name: string; address: string; provider: string; hours: string; price: string; dishes: Dish[]; sourceUrl: string };
@@ -19,10 +20,10 @@ function loadSavedUrls() {
   try {
     const saved = JSON.parse(localStorage.getItem('lounasvahti-ravintolat') || '[]');
     const savedUrls = Array.isArray(saved) ? saved.filter((value): value is string => typeof value === 'string') : [];
-    if (!localStorage.getItem('lounasvahti-oletukset-v2')) {
+    if (!localStorage.getItem('lounasvahti-oletukset-v3')) {
       const merged = [...new Set([...DEFAULT_URLS, ...savedUrls])];
       localStorage.setItem('lounasvahti-ravintolat', JSON.stringify(merged));
-      localStorage.setItem('lounasvahti-oletukset-v2', '1');
+      localStorage.setItem('lounasvahti-oletukset-v3', '1');
       return merged;
     }
     return savedUrls.length ? savedUrls : DEFAULT_URLS;

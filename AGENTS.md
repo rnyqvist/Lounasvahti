@@ -10,8 +10,9 @@ from user-selected restaurant pages.
 - First functional version completed on 2026-09-02.
 - Source is mirrored to the private GitHub repository `rnyqvist/Lounasvahti`.
 - Default restaurants: Sodexo Optimes Business Garden, Restaurant Anna,
-  Huili Tourula, and Scandic Jyväskylä Station.
-- Sodexo weekly JSON, Juvenes Jamix, Huili, and Lounaat.info menus have
+  Huili Tourula, Scandic Jyväskylä Station, and Tourulan Ravintola.
+- Sodexo weekly JSON, Juvenes Jamix, Huili, Lounaat.info, and Tourulan
+  Ravintola Google Sheets menus have
   source-specific server-side parsers.
 - The Lounaat.info parser supports both compact buffet blocks and separate
   priced heading/dish rows, with a weekday fallback for stale displayed dates.

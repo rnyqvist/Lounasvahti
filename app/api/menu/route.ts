@@ -183,6 +183,91 @@ function parseLounaatInfo(pageUrl: URL, html: string) {
   return { name, address, provider: 'LOUNAAT.INFO', hours: hours ? `${opensAt}–${closesAt}` : 'Tarkista ravintolasta', price, dishes, sourceUrl: pageUrl.toString() };
 }
 
+function parseCsv(value: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === '"') {
+      if (quoted && value[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === ',' && !quoted) {
+      row.push(field.trim());
+      field = '';
+    } else if ((character === '\n' || character === '\r') && !quoted) {
+      if (character === '\r' && value[index + 1] === '\n') index += 1;
+      row.push(field.trim());
+      if (row.some(Boolean)) rows.push(row);
+      row = [];
+      field = '';
+    } else {
+      field += character;
+    }
+  }
+
+  row.push(field.trim());
+  if (row.some(Boolean)) rows.push(row);
+  return rows;
+}
+
+function splitTourulaDishes(value: string) {
+  return value
+    .replace(/\s+/g, ' ')
+    .split(/\s+(?=[A-ZÅÄÖ][a-zåäö])/)
+    .map((dish) => dish.trim().replace(/[,.]+$/, ''))
+    .filter(Boolean);
+}
+
+async function parseTourulanRavintola(pageUrl: URL, html: string) {
+  if (!pageUrl.hostname.endsWith('tourulanravintola.fi')) return null;
+  const sheetUrl = decodeHtml(html.match(/https:\/\/docs\.google\.com\/spreadsheets\/d\/e\/[^"'<\s]+/i)?.[0] || '');
+  if (!sheetUrl) return null;
+
+  const publishedId = sheetUrl.match(/\/spreadsheets\/d\/e\/([^/]+)/i)?.[1];
+  if (!publishedId) return null;
+  const gid = new URL(sheetUrl).searchParams.get('gid') || '0';
+  const csvUrl = `https://docs.google.com/spreadsheets/d/e/${publishedId}/pub?gid=${encodeURIComponent(gid)}&single=true&output=csv`;
+  const csv = await (await safeFetch(csvUrl)).text();
+  const rows = parseCsv(csv);
+
+  const helsinkiParts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Helsinki', day: '2-digit', month: '2-digit' }).formatToParts(new Date());
+  const day = helsinkiParts.find((part) => part.type === 'day')?.value || '';
+  const month = helsinkiParts.find((part) => part.type === 'month')?.value || '';
+  const datePattern = new RegExp(`^0?${Number(day)}[./]0?${Number(month)}$`);
+  const dateRow = rows.find((row) => row.some((cell) => datePattern.test(cell)));
+  const dateColumn = dateRow?.findIndex((cell) => datePattern.test(cell)) ?? -1;
+  const firstMenuRow = dateRow ? rows.indexOf(dateRow) + 2 : -1;
+
+  const dishes = dateColumn < 0 || firstMenuRow < 0 ? [] : rows
+    .slice(firstMenuRow)
+    .flatMap((row) => splitTourulaDishes(row[dateColumn] || ''))
+    .filter((dish) => !/^herkkupäivä\s*!*$/i.test(dish))
+    .map((raw) => ({ name: cleanDietText(raw), type: mealType('', raw), tags: dietTags(raw) }))
+    .filter((dish) => dish.name);
+
+  const pageText = textFromHtml(html);
+  const hours = pageText.match(/Lounas\s*Buffet[^\d]{0,30}\d+[,.]\d{2}\s*€?\s*ark\.\s*(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/i);
+  const price = (pageText.match(/Lounasbuffet\s*([0-9]+[,.][0-9]{2}\s*€)/i)?.[1] || '11,50 €').replace(/\s*€$/, ' €');
+  const address = (pageText.match(/Vapaaherrantie\s+2\s+40100,?\s+Jyväskylä/i)?.[0] || 'Vapaaherrantie 2, 40100 Jyväskylä').replace(/\s+40100,?/, ', 40100');
+
+  return {
+    name: 'Tourulan Ravintola',
+    address,
+    provider: 'TOURULAN RAVINTOLA',
+    hours: hours ? `${hours[1]}–${hours[2]}` : '10:00–15:00',
+    price,
+    dishes,
+    sourceUrl: pageUrl.toString(),
+  };
+}
+
 function parseGeneric(pageUrl: URL, html: string) {
   const name = textFromHtml(html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || pageUrl.hostname);
   const body = html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<style[\s\S]*?<\/style>/gi, '');
@@ -207,7 +292,7 @@ export async function POST(request: NextRequest) {
     if (!type.includes('text/html')) throw new Error('Osoite ei johda luettavaan verkkosivuun.');
     const html = await response.text();
     if (html.length > 3_000_000) throw new Error('Sivu on liian suuri analysoitavaksi.');
-    const restaurant = await parseSodexo(url, html) || await parseJuvenes(url, html) || parseHuili(url, html) || parseLounaatInfo(url, html) || parseGeneric(url, html);
+    const restaurant = await parseSodexo(url, html) || await parseJuvenes(url, html) || parseHuili(url, html) || parseLounaatInfo(url, html) || await parseTourulanRavintola(url, html) || parseGeneric(url, html);
     return NextResponse.json({ restaurant, fetchedAt: new Date().toISOString() });
   } catch (error) {
     const message = error instanceof Error && error.name === 'TimeoutError' ? 'Ravintolan sivu ei vastannut ajoissa.' : error instanceof Error ? error.message : 'Ruokalistan haku epäonnistui.';
