@@ -6,6 +6,10 @@ Restaurant Anna, Huili Tourula, Scandic Jyväskylä Station ja Tourulan Ravintol
 
 ## Toiminnot
 
+- Päivän bittipala: ohjelmointihuumoria ja käytännön vinkki tiimin lounastauolle.
+  60 toimitettua sisältöä vaihtuu Suomen vuorokauden mukaan; kierros toistuu 60 päivän
+  välein. Sama päivän sisältö kaikille, ilman ulkoisia rajapintoja tai käyttömaksuja.
+
 - päivän ruokalista haetaan aina sivua avattaessa ja päivitettäessä
 - Sodexon JSON-, Juvenes Jamix-, Huili-, Lounaat.info- ja Tourulan Ravintolan
   Google Sheets -ruokalistat tunnistetaan

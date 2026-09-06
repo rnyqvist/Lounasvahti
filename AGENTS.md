@@ -24,6 +24,10 @@ from user-selected restaurant pages.
 ## Architecture
 
 - `app/page.tsx`: client UI and device-local restaurant collection.
+- `app/daily-bit.tsx` and `lib/daily-bit.ts`: Päivän bittipala, an original Finnish
+  IT joke/mini-sketch and practical tip. 60 entries rotate by Helsinki calendar day,
+  repeat after 60 days, and need no external API or credentials. The page's existing
+  day-change timer updates the feature along with menus. Keep copy workplace-friendly.
 - `app/api/menu/route.ts`: request validation and API response with the requested Helsinki date.
 - `lib/menus.ts`: provider parsers and menu status; date arguments make regression tests deterministic.
 - `lib/menu-date.ts`: Helsinki date and source-date parsing, shared with the client.
@@ -54,8 +58,8 @@ five live default URLs after parser changes. Run `npm.cmd test`,
   Native dialog handles Escape and focus containment. Empty saved selections persist.
 - The September 6 live check returned empty menus for four providers and a weekday-only
   closed state for Huili. This is Sunday source availability, not a failed parser.
-- Public site deployment requires the final publishing decision; check the current
-  Sites version/access before reporting these fixes as live.
+- Accuracy fixes were published publicly as Sites version 6 on September 6.
+  Check current Sites version/access before reporting later changes as live.
 
 ## Safety notes
 

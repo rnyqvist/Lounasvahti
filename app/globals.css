@@ -141,3 +141,25 @@ dialog.modal-backdrop::backdrop { background:transparent; }
   html { scroll-behavior:auto; }
   *,*::before,*::after { animation:none!important; transition:none!important; }
 }
+
+.hero { gap:40px; align-items:center; padding-left:40px; padding-right:40px; }
+.hero > div:first-child { flex:1 1 40%; min-width:0; }
+.daily-bit { position:relative; flex:1 1 55%; min-width:0; max-width:560px; padding:24px; border:1px solid var(--line); border-top:4px solid var(--orange); border-radius:16px; background:#fffdf8; }
+.daily-bit-heading { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.daily-bit-heading h2 { font-family:var(--font-sans),sans-serif; font-size:1rem; font-weight:750; letter-spacing:-.02em; }
+.daily-bit-heading > span { font-size:.75rem; color:var(--forest); background:#e8eee6; padding:4px 8px; border-radius:20px; }
+.daily-bit h3 { margin:16px 0 10px; font-family:var(--font-serif),serif; font-size:1.4rem; font-weight:500; }
+.daily-bit-joke p { margin:5px 0; font-size:1rem; line-height:1.45; }
+.daily-bit-joke p:last-child { font-weight:600; }
+.daily-bit-tip { margin-top:18px; padding-top:14px; border-top:1px dashed var(--line); }
+.daily-bit-tip strong { font-size:.875rem; color:var(--forest); }
+.daily-bit-tip p { margin:5px 0 0; font-size:.9375rem; line-height:1.5; color:#52685f; }
+.daily-bit-next { margin:14px 0 0; color:#52685f; font-size:.75rem; }
+@media (max-width:900px) {
+  .hero { gap:24px; padding-left:28px; padding-right:28px; }
+}
+@media (max-width:680px) {
+  .hero { flex-direction:column; align-items:stretch; padding:28px 20px; }
+  .hero .intro { max-width:none; }
+  .daily-bit { max-width:none; padding:20px; }
+}
