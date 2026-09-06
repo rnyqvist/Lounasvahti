@@ -93,11 +93,51 @@ footer span { color:var(--orange); }
   .content { padding:58px 16px; } .restaurant-card { grid-template-columns:260px 1fr; } .menu-panel { padding:30px 28px 22px; }
 }
 @media (max-width:680px) {
-  .add-button { padding:11px 14px; font-size:12px; } .menu-button { display:none; }
+  .add-button { padding:11px 14px; font-size:14px; }
   .hero { min-height:390px; align-items:flex-start; padding:46px 25px; } .hero-orbit { right:-88px; bottom:-35px; top:auto; transform:scale(.75); }
   h1 { font-size:51px; } .intro { max-width:220px; } .section-heading { align-items:flex-start; gap:15px; }
   .updated { padding-top:27px; white-space:nowrap; font-size:10px; } .restaurant-card { display:block; } .restaurant-side { min-height:360px; }
   .menu-panel { border-radius:25px 25px 0 0; padding:30px 24px 24px; } .dish { grid-template-columns:28px 1fr; gap:9px; }
   .dish-copy { grid-template-columns:1fr; } .tags { margin-top:9px; } .dish h4 { font-size:18px; } .legend { justify-content:flex-start; flex-wrap:wrap; line-height:1.8; }
   footer { margin:0 16px; gap:20px; }
+}
+
+/* Keep the menus and their provenance readable on small screens. */
+.hero { min-height:240px; padding-top:32px; padding-bottom:32px; }
+h1 { font-size:clamp(42px,5vw,64px); }
+.content { padding-top:40px; }
+.menu-freshness,.menu-notice,.diet-details { font-size:.875rem; line-height:1.5; }
+.menu-freshness { color:#52685f; margin:12px 0; }
+.menu-notice { padding:12px 14px; background:#f3e6bf; border-radius:10px; color:#59451f; }
+.diet-details { grid-column:1/-1; margin-top:8px; color:#52685f; }
+.diet-details summary { cursor:pointer; }
+.diet-details p { margin:8px 0 0; }
+.tags { flex-wrap:wrap; }
+.tags span { width:auto; min-width:28px; height:28px; padding:0 5px; font-size:.875rem; }
+.legend { display:block; font-size:.875rem; line-height:1.7; color:#52685f; }
+.provider,.hours small,.dish-type,.menu-topline { font-size:.75rem; }
+.address,.source-link,.price,.updated,.error-state p,.error-state button { font-size:.875rem; }
+.remove-button { min-width:36px; min-height:36px; }
+.refresh-button { flex-shrink:0; }
+button:disabled { opacity:.5; cursor:default; }
+button:focus-visible,a:focus-visible,summary:focus-visible { outline:3px solid var(--orange); outline-offset:3px; }
+dialog.modal-backdrop { width:100%; height:100%; max-width:none; max-height:none; margin:0; border:0; color:var(--ink); overflow:auto; }
+dialog.modal-backdrop:not([open]) { display:none; }
+dialog.modal-backdrop::backdrop { background:transparent; }
+.modal { margin:auto; }
+@media (max-width:680px) {
+  .topbar { padding:0 12px; gap:8px; }
+  .header-actions { gap:6px; }
+  .brand { gap:6px; font-size:17px; }
+  .hero { min-height:250px; padding:30px 25px; }
+  .hero-orbit { transform:scale(.55); right:-110px; }
+  .restaurant-side { min-height:250px; }
+  .restaurant-side h3 { margin-top:24px; }
+  .section-heading { flex-wrap:wrap; }
+  .updated { padding-top:0; white-space:normal; }
+  .modal { padding:36px 24px; }
+}
+@media (prefers-reduced-motion:reduce) {
+  html { scroll-behavior:auto; }
+  *,*::before,*::after { animation:none!important; transition:none!important; }
 }

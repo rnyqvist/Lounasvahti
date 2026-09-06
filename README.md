@@ -29,6 +29,18 @@ Tuotantoversion tarkistus:
 npm.cmd run build
 ```
 
+Regression tests and TypeScript validation:
+
+```powershell
+npm.cmd test
+npm.cmd run typecheck
+```
+
+Menus now use exact Helsinki dates. Unverified extraction is labelled explicitly,
+and old weekday menus are not substituted for today's menu. Source dietary text
+is preserved; missing component labels do not imply that the whole meal shares a
+diet. The page shows individual fetch times and refreshes when the Helsinki day changes.
+
 ## Jatkokehitys
 
 Yleinen HTML-tunnistin toimii parhaalla yrityksellä. Uusille suurille
