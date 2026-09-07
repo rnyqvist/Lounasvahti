@@ -24,10 +24,17 @@ from user-selected restaurant pages.
 ## Architecture
 
 - `app/page.tsx`: client UI and device-local restaurant collection.
-- `app/daily-bit.tsx` and `lib/daily-bit.ts`: Päivän bittipala, an original Finnish
-  IT joke/mini-sketch and practical tip. 60 entries rotate by Helsinki calendar day,
-  repeat after 60 days, and need no external API or credentials. The page's existing
-  day-change timer updates the feature along with menus. Keep copy workplace-friendly.
+- `app/lunch-weather.tsx`, `lib/lunch-weather.ts`, `lib/weather-source.ts` and
+  `app/api/weather/route.ts`: Jyväskylä lunch weather (62.2426, 25.7473), replacing
+  Päivän bittipala at the user's request on September 7. MET Norway Locationforecast
+  provides temperature, wind and precipitation for exactly 10–11, 11–12, 12–13.
+  Keep today's forecast until Helsinki midnight using D1 daily snapshots. Missing/past hours
+  stay missing; never substitute a six-hour precipitation amount for a one-hour amount.
+  Server cache honors Expires/Last-Modified, deduplicates requests and backs off on
+  errors. Visible clients refresh every ~15 minutes and on return if due.
+- `public/weather/`: official MET/Yr weather SVGs, bundled unchanged under MIT;
+  keep LICENSE.txt. Forecast attribution is MET Norway, CC BY 4.0, with a notice
+  that Lounasvahti produces the summary. No API key or location permission required.
 - `app/api/menu/route.ts`: request validation and API response with the requested Helsinki date.
 - `lib/menus.ts`: provider parsers and menu status; date arguments make regression tests deterministic.
 - `lib/menu-date.ts`: Helsinki date and source-date parsing, shared with the client.

@@ -6,9 +6,9 @@ Restaurant Anna, Huili Tourula, Scandic Jyväskylä Station ja Tourulan Ravintol
 
 ## Toiminnot
 
-- Päivän bittipala: ohjelmointihuumoria ja käytännön vinkki tiimin lounastauolle.
-  60 toimitettua sisältöä vaihtuu Suomen vuorokauden mukaan; kierros toistuu 60 päivän
-  välein. Sama päivän sisältö kaikille, ilman ulkoisia rajapintoja tai käyttömaksuja.
+- Jyväskylän lounassää klo 10–13: sääkuvakkeet, lämpötila, tuuli ja tunnin sademäärä.
+  Päivän ennuste säilytetään tietokannassa keskiyöhön (Europe/Helsinki). Lähde MET Norway (CC BY 4.0),
+  sääkuvakkeet MET/Yr (MIT). Ei API-avainta eikä selaimen paikannusta.
 
 - päivän ruokalista haetaan aina sivua avattaessa ja päivitettäessä
 - Sodexon JSON-, Juvenes Jamix-, Huili-, Lounaat.info- ja Tourulan Ravintolan
@@ -24,6 +24,7 @@ Restaurant Anna, Huili Tourula, Scandic Jyväskylä Station ja Tourulan Ravintol
 
 ```powershell
 npm.cmd install
+npx.cmd wrangler d1 migrations apply DB --local --config wrangler.local.json
 npm.cmd run dev
 ```
 

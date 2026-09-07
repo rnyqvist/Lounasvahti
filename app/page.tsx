@@ -4,7 +4,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import type { Restaurant } from '../lib/menus.ts';
 import { menuDate } from '../lib/menu-date.ts';
 import { DEFAULT_URLS, normalizeRestaurantUrl, savedRestaurantUrls } from '../lib/restaurant-storage.ts';
-import { DailyBit } from './daily-bit';
+import { LunchWeather } from './lunch-weather';
 
 type MenuState = { url: string; data?: Restaurant; loading: boolean; error?: string; fetchedAt?: string };
 
@@ -119,7 +119,7 @@ export default function Home() {
       </header>
       <section className="hero" id="alkuun">
         <div><p className="eyebrow">{today.toLocaleUpperCase('fi-FI')}</p><h1>Mitä tänään<br /><em>syötäisiin?</em></h1><p className="intro">Päivän lounaat läheltäsi — yhdessä paikassa.</p></div>
-        <DailyBit date={date} />
+        <LunchWeather now={now} />
       </section>
       <section className="content" aria-labelledby="restaurants-heading">
         <div className="section-heading">
